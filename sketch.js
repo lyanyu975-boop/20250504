@@ -1,6 +1,7 @@
 let faceMesh;
 let video;
 let predictions = [];
+let webcamError = false; // 新增變數來追蹤攝影機錯誤
 let stars = []; // 儲存星星座標
 
 // 定義指定的編號路徑
@@ -27,21 +28,26 @@ function setup() {
   createCanvas(windowWidth, windowHeight);
   
   // 初始化攝影機擷取，增加 callback 確認成功
-  video = createCapture(VIDEO, (stream) => {
+  video = createCapture(VIDEO, (stream) => { // stream 參數是 MediaStream 物件
     console.log("攝影機串流成功啟動");
+    // 攝影機成功啟動後，再初始化 facemesh 模型
+    faceMesh = ml5.facemesh(video, () => {
+      console.log("模型準備就緒！");
+      // 當偵測到臉部時，更新 predictions 變數
+      faceMesh.on("predict", results => {
+        predictions = results;
+      });
+    });
   });
+  // 延遲一秒檢查攝影機是否成功啟動，如果 video.elt.srcObject 為 null，則表示失敗
+  setTimeout(() => {
+    if (!video || !video.elt || !video.elt.srcObject) {
+      console.error("攝影機未找到或無法啟動。請檢查攝影機權限和連接。");
+      webcamError = true;
+    }
+  }, 1000); // 給予攝影機啟動時間
   video.size(windowWidth * 0.5, windowHeight * 0.5);
   video.hide();
-
-  // 建議：可以在這裡增加錯誤處理，提示使用者檢查攝影機
-
-  // 初始化 facemesh 模型
-  faceMesh = ml5.facemesh(video, () => console.log("模型準備就緒！"));
-
-  // 當偵測到臉部時，更新 predictions 變數
-  faceMesh.on("predict", results => {
-    predictions = results;
-  });
 
   // 初始化星星
   for (let i = 0; i < 200; i++) {
@@ -67,10 +73,19 @@ function draw() {
   translate(width / 2, height / 2);
   scale(-1, 1);
   
-  // 1. 繪製擷取影像
-  image(video, -displayWidth / 2, -displayHeight / 2, displayWidth, displayHeight);
+  if (webcamError) {
+    // 如果攝影機錯誤，顯示錯誤訊息
+    fill(0);
+    rect(-width / 2, -height / 2, width, height); // 覆蓋整個畫布
+    fill(255, 0, 0); // 紅色文字
+    textAlign(CENTER, CENTER);
+    textSize(24);
+    text("錯誤：未找到攝影機或無法啟動。\n請檢查攝影機權限和連接。", 0, 0);
+  } else if (faceMesh && predictions.length > 0) {
+    // 攝影機正常且偵測到臉部
+    // 1. 繪製擷取影像
+    image(video, -displayWidth / 2, -displayHeight / 2, displayWidth, displayHeight);
 
-  if (predictions.length > 0) {
     const keypoints = predictions[0].scaledMesh;
     const offsetX = -displayWidth / 2;
     const offsetY = -displayHeight / 2;
@@ -119,9 +134,21 @@ function draw() {
     // 重設發光效果，避免影響其他繪圖
     drawingContext.shadowBlur = 0;
   } else {
-    // 若沒偵測到臉，則全畫面漆黑 (除了星星)
+    // 若攝影機正常但沒偵測到臉，則全畫面漆黑 (除了星星)
     fill(0);
-    rect(-width, -height, width * 2, height * 2);
+    rect(-width / 2, -height / 2, width, height);
+    // 提示模型正在加載或等待臉部
+    if (faceMesh) { // 如果 facemesh 模型已經初始化
+        fill(255);
+        textAlign(CENTER, CENTER);
+        textSize(20);
+        text("載入臉部辨識模型中或等待臉部...", 0, 0);
+    } else { // 如果 facemesh 模型還未初始化 (可能在等待攝影機)
+        fill(255);
+        textAlign(CENTER, CENTER);
+        textSize(20);
+        text("啟動攝影機中...", 0, 0);
+    }
   }
   pop();
 }
