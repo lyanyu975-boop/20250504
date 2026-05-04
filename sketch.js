@@ -19,13 +19,12 @@ function setup() {
   video.size(windowWidth * 0.5, windowHeight * 0.5);
   video.hide();
 
-  // 初始化 faceMesh 模型 (注意 M 大寫)
-  faceMesh = ml5.faceMesh({ maxFaces: 1, refineLandmarks: true }, () => {
-    console.log("模型準備就緒！");
-    // 確保模型準備好且影片已啟動後再開始偵測
-    faceMesh.detectStart(video, results => {
-      predictions = results;
-    });
+  // 初始化 facemesh 模型
+  faceMesh = ml5.facemesh(video, () => console.log("模型準備就緒！"));
+
+  // 當偵測到臉部時，更新 predictions 變數
+  faceMesh.on("predict", results => {
+    predictions = results;
   });
 }
 
@@ -47,7 +46,7 @@ function draw() {
 
   // 如果偵測到臉部關鍵點
   if (predictions.length > 0) {
-    let keypoints = predictions[0].keypoints;
+    let keypoints = predictions[0].scaledMesh;
     
     // 繪製路徑 1 與 路徑 2 (紅色，粗細 1)
     drawPath(keypoints, path1, false, -displayWidth / 2, -displayHeight / 2);
@@ -71,14 +70,14 @@ function drawPath(points, indices, isClosed, offsetX, offsetY) {
   for (let i = 0; i < indices.length - 1; i++) {
     let p1 = points[indices[i]];
     let p2 = points[indices[i + 1]];
-    line(p1.x + offsetX, p1.y + offsetY, p2.x + offsetX, p2.y + offsetY);
+    line(p1[0] + offsetX, p1[1] + offsetY, p2[0] + offsetX, p2[1] + offsetY);
   }
 
   // 如果需要閉合 (成一圈)
   if (isClosed) {
     let pFirst = points[indices[0]];
     let pLast = points[indices[indices.length - 1]];
-    line(pLast.x + offsetX, pLast.y + offsetY, pFirst.x + offsetX, pFirst.y + offsetY);
+    line(pLast[0] + offsetX, pLast[1] + offsetY, pFirst[0] + offsetX, pFirst[1] + offsetY);
   }
 }
 
