@@ -19,10 +19,13 @@ function setup() {
   video.size(windowWidth * 0.5, windowHeight * 0.5);
   video.hide();
 
-  // 初始化 facemesh 模型
-  faceMesh = ml5.faceMesh(() => console.log("模型準備就緒！"));
-  faceMesh.detectStart(video, results => {
-    predictions = results;
+  // 初始化 faceMesh 模型 (注意 M 大寫)
+  faceMesh = ml5.faceMesh({ maxFaces: 1, refineLandmarks: true }, () => {
+    console.log("模型準備就緒！");
+    // 確保模型準備好且影片已啟動後再開始偵測
+    faceMesh.detectStart(video, results => {
+      predictions = results;
+    });
   });
 }
 
