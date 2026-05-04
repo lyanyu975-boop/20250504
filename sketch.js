@@ -1,14 +1,26 @@
 let faceMesh;
 let video;
 let predictions = [];
+let stars = []; // 儲存星星座標
 
 // 定義指定的編號路徑
 const path1 = [409, 270, 269, 267, 0, 37, 39, 40, 185, 61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291];
 const path2 = [76, 77, 90, 180, 85, 16, 315, 404, 320, 307, 306, 408, 304, 303, 302, 11, 72, 73, 74, 184];
 
-// 右眼相關編號 (包含 247 與 246 的完整迴圈)
+// 右眼相關編號
 const rightEyeOuter = [130, 247, 30, 29, 28, 56, 190, 243, 112, 26, 22, 23, 24, 110, 25];
 const rightEyeInner = [33, 246, 161, 160, 159, 158, 157, 173, 133, 155, 154, 153, 145, 144, 163, 7];
+
+// 左眼相關編號
+const leftEyeOuter = [463, 341, 256, 252, 253, 254, 339, 255, 359, 467, 260, 259, 257, 258, 286, 414];
+const leftEyeInner = [466, 388, 387, 386, 385, 384, 398, 362, 382, 381, 380, 374, 373, 390, 249, 263];
+
+// 臉部最外層輪廓 (Silhouette) 編號
+const faceSilhouette = [
+  10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 
+  400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 
+  54, 103, 67, 109
+];
 
 function setup() {
   // 建立全螢幕畫布
@@ -30,6 +42,11 @@ function setup() {
   faceMesh.on("predict", results => {
     predictions = results;
   });
+
+  // 初始化星星
+  for (let i = 0; i < 200; i++) {
+    stars.push({ x: random(width), y: random(height), size: random(1, 3) });
+  }
 }
 
 function draw() {
@@ -39,42 +56,82 @@ function draw() {
   const displayWidth = width * 0.5;
   const displayHeight = height * 0.5;
 
+  // 繪製背景星星
+  fill(255);
+  noStroke();
+  for (let s of stars) {
+    ellipse(s.x, s.y, s.size);
+  }
+
   push();
-  // 將座標中心移至螢幕中央
   translate(width / 2, height / 2);
-  // 左右顛倒 (鏡像效果)
   scale(-1, 1);
   
-  // 顯示擷取影像 (置中於當前座標系)
+  // 1. 繪製擷取影像
   image(video, -displayWidth / 2, -displayHeight / 2, displayWidth, displayHeight);
 
-  // 如果偵測到臉部關鍵點
   if (predictions.length > 0) {
     const keypoints = predictions[0].scaledMesh;
+    const offsetX = -displayWidth / 2;
+    const offsetY = -displayHeight / 2;
     
-    // 設定一次繪圖樣式即可，不需在 drawPath 內重複設定
+    // 2. 繪製臉外黑色遮罩 (挖空臉部)
+    fill(0);
+    noStroke();
+    beginShape();
+    // 外部大框 (覆蓋整個畫布)
+    vertex(-width, -height);
+    vertex(width, -height);
+    vertex(width, height);
+    vertex(-width, height);
+    // 內部挖空 (臉部輪廓)
+    beginContour();
+    for (let i = 0; i < faceSilhouette.length; i++) {
+      const p = keypoints[faceSilhouette[i]];
+      vertex(p[0] + offsetX, p[1] + offsetY);
+    }
+    endContour();
+    endShape(CLOSE);
+
+    // 3. 設定霓虹發光效果 (僅對後續線條有效)
+    drawingContext.shadowBlur = 15;
+    drawingContext.shadowColor = color(255, 0, 0);
+
+    // 4. 繪製紅色路徑與眼睛
     stroke(255, 0, 0); 
     strokeWeight(1);   
     noFill();
     
-    // 繪製路徑 1 與 路徑 2 (紅色，粗細 1)
-    drawPath(keypoints, path1, false, -displayWidth / 2, -displayHeight / 2);
-    drawPath(keypoints, path2, false, -displayWidth / 2, -displayHeight / 2);
+    // 指定路徑 1 & 2
+    drawPath(keypoints, path1, false, offsetX, offsetY);
+    drawPath(keypoints, path2, false, offsetX, offsetY);
     
-    // 繪製右眼外圈 (編號 247)
-    drawPath(keypoints, rightEyeOuter, true, -displayWidth / 2, -displayHeight / 2);
+    // 繪製右眼與左眼
+    drawPath(keypoints, rightEyeOuter, true, offsetX, offsetY);
+    drawPath(keypoints, rightEyeInner, true, offsetX, offsetY);
+    drawPath(keypoints, leftEyeOuter, true, offsetX, offsetY);
+    drawPath(keypoints, leftEyeInner, true, offsetX, offsetY);
+
+    // 繪製臉部外輪廓線 (增加霓虹感)
+    strokeWeight(2);
+    drawPath(keypoints, faceSilhouette, true, offsetX, offsetY);
     
-    // 繪製右眼內圈 (編號 246)
-    drawPath(keypoints, rightEyeInner, true, -displayWidth / 2, -displayHeight / 2);
+    // 重設發光效果，避免影響其他繪圖
+    drawingContext.shadowBlur = 0;
+  } else {
+    // 若沒偵測到臉，則全畫面漆黑 (除了星星)
+    fill(0);
+    rect(-width, -height, width * 2, height * 2);
   }
   pop();
 }
 
-// 使用 line 指令串接關鍵點的函式
 function drawPath(points, indices, isClosed, offsetX, offsetY) {
   for (let i = 0; i < indices.length - 1; i++) {
-    const p1 = points[indices[i]];
-    const p2 = points[indices[i + 1]];
+    let idx1 = indices[i];
+    let idx2 = indices[i+1];
+    const p1 = points[idx1];
+    const p2 = points[idx2];
     line(p1[0] + offsetX, p1[1] + offsetY, p2[0] + offsetX, p2[1] + offsetY);
   }
 
