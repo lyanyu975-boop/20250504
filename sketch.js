@@ -28,7 +28,10 @@ function setup() {
   createCanvas(windowWidth, windowHeight);
   
   // 初始化攝影機擷取，增加 callback 確認成功
-  video = createCapture(VIDEO, (stream) => { // stream 參數是 MediaStream 物件
+  video = createCapture({
+    video: true,
+    audio: false
+  }, (stream) => { 
     console.log("攝影機串流成功啟動");
     // 攝影機成功啟動後，再初始化 facemesh 模型
     faceMesh = ml5.facemesh(video, () => {
@@ -109,7 +112,7 @@ function draw() {
     endShape(CLOSE);
 
     // 3. 設定霓虹發光效果 (僅對後續線條有效)
-    drawingContext.shadowBlur = 15;
+    drawingContext.shadowBlur = 25; // 增加光暈強度
     drawingContext.shadowColor = color(255, 0, 0);
 
     // 4. 繪製紅色路徑與眼睛
@@ -128,8 +131,9 @@ function draw() {
     drawPath(keypoints, leftEyeInner, true, offsetX, offsetY);
 
     // 繪製臉部外輪廓線 (增加霓虹感)
-    strokeWeight(2);
+    strokeWeight(2); // 輪廓線稍微粗一點
     drawPath(keypoints, faceSilhouette, true, offsetX, offsetY);
+    strokeWeight(1);
     
     // 重設發光效果，避免影響其他繪圖
     drawingContext.shadowBlur = 0;
