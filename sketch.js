@@ -1,106 +1,91 @@
 let faceMesh;
 let video;
-let faces = [];
-let options = { maxFaces: 1, refineLandmarks: false, flipHorizontal: false };
+let predictions = [];
 
-function preload() {
-  // 檢查 ml5 是否存在，避免 ReferenceError
-  if (typeof ml5 !== 'undefined') {
-    faceMesh = ml5.faceMesh(options);
-  } else {
-    console.error("錯誤：ml5 未定義。請確保 HTML 檔案中已引入 ml5.js 程式庫。");
-    alert("ml5.js 載入失敗，請檢查網路連線或 index.html 設定。");
-  }
-}
+// 定義指定的編號路徑
+const path1 = [409, 270, 269, 267, 0, 37, 39, 40, 185, 61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291];
+const path2 = [76, 77, 90, 180, 85, 16, 315, 404, 320, 307, 306, 408, 304, 303, 302, 11, 72, 73, 74, 184];
+
+// 右眼相關編號 (包含 247 與 246 的完整迴圈)
+const rightEyeOuter = [130, 247, 30, 29, 28, 56, 190, 243, 112, 26, 22, 23, 24, 110, 25];
+const rightEyeInner = [33, 246, 161, 160, 159, 158, 157, 173, 133, 155, 154, 153, 145, 144, 163, 7];
 
 function setup() {
+  // 建立全螢幕畫布
   createCanvas(windowWidth, windowHeight);
   
-  // 建立攝影機擷取
-  video = createCapture(VIDEO, (stream) => {
-    console.log("攝影機已啟動");
-  });
-  video.size(640, 480);
+  // 初始化攝影機擷取，設定為全螢幕寬高的 50%
+  video = createCapture(VIDEO);
+  video.size(windowWidth * 0.5, windowHeight * 0.5);
   video.hide();
 
-  // 開始偵測臉部
-  if (faceMesh) {
-    faceMesh.detectStart(video, gotFaces);
-  }
+  // 初始化 facemesh 模型
+  faceMesh = ml5.facemesh(video, () => console.log("模型準備就緒！"));
+
+  // 當偵測到臉部時，更新 predictions 變數
+  faceMesh.on("predict", results => {
+    predictions = results;
+  });
 }
 
 function draw() {
-  background(220);
+  // 畫布顏色設定為 e7c6ff
+  background('#e7c6ff');
 
-  // 1. 顯示文字：位於左上方但水平置中
-  fill(0);
-  noStroke();
-  textSize(24);
-  textAlign(CENTER, TOP);
-  text("414730266留妍瑜", width / 2, 20);
+  let displayWidth = width * 0.5;
+  let displayHeight = height * 0.5;
 
-  // 2. 計算影像顯示大小 (全螢幕寬高的 50%)
-  let displayW = width * 0.5;
-  let displayH = height * 0.5;
-  let x = (width - displayW) / 2;
-  let y = (height - displayH) / 2;
-
-  // 3. 處理鏡像並繪製影像與臉譜
   push();
-  // 移動到顯示區域的右側並反轉 X 軸，以修正左右顛倒問題
-  translate(x + displayW, y);
+  // 將座標中心移至螢幕中央
+  translate(width / 2, height / 2);
+  // 左右顛倒 (鏡像效果)
   scale(-1, 1);
+  
+  // 顯示擷取影像 (置中於當前座標系)
+  image(video, -displayWidth / 2, -displayHeight / 2, displayWidth, displayHeight);
 
-  // 繪製攝影機影像
-  image(video, 0, 0, displayW, displayH);
-
-  // 繪製臉譜特徵點 - 嘴唇與眼睛 (黑色粗線條)
-  if (faces.length > 0) {
-    let face = faces[0];
-    stroke(0); // 黑色線條
-    strokeWeight(1); // 線條粗細 1
-    noFill();
-
-    // 定義點位編號陣列
-    let lipsOuter = [409, 270, 269, 267, 0, 37, 39, 40, 185, 61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291];
-    let lipsInner = [76, 77, 90, 180, 85, 16, 315, 404, 320, 307, 306, 408, 304, 303, 302, 11, 72, 73, 74, 184];
-    let lEyeTop = [243, 190, 56, 28, 27, 29, 30, 247, 130, 25, 110, 24, 23, 22, 26, 112];
-    let lEyeBottom = [133, 173, 157, 158, 159, 160, 161, 246, 33, 7, 163, 144, 145, 153, 154, 155];
-    let rEyeTop = [359, 467, 260, 259, 257, 258, 286, 414, 463, 341, 256, 252, 253, 254, 339, 255];
-    let rEyeBottom = [263, 466, 388, 387, 386, 385, 384, 398, 362, 382, 381, 380, 374, 373, 390, 249];
-
-    // 繪製各個部位
-    drawPath(face, lipsOuter, displayW, displayH);
-    drawPath(face, lipsInner, displayW, displayH);
-    drawPath(face, lEyeTop, displayW, displayH);
-    drawPath(face, lEyeBottom, displayW, displayH);
-    drawPath(face, rEyeTop, displayW, displayH);
-    drawPath(face, rEyeBottom, displayW, displayH);
+  // 如果偵測到臉部關鍵點
+  if (predictions.length > 0) {
+    let keypoints = predictions[0].scaledMesh;
+    
+    // 繪製路徑 1 與 路徑 2 (紅色，粗細 1)
+    drawPath(keypoints, path1, false, -displayWidth / 2, -displayHeight / 2);
+    drawPath(keypoints, path2, false, -displayWidth / 2, -displayHeight / 2);
+    
+    // 繪製右眼外圈 (編號 247)
+    drawPath(keypoints, rightEyeOuter, true, -displayWidth / 2, -displayHeight / 2);
+    
+    // 繪製右眼內圈 (編號 246)
+    drawPath(keypoints, rightEyeInner, true, -displayWidth / 2, -displayHeight / 2);
   }
   pop();
 }
 
-// 輔助函式：根據點位陣列繪製串接線條
-function drawPath(face, indices, dw, dh) {
-  let vW = video.width > 0 ? video.width : 640;
-  let vH = video.height > 0 ? video.height : 480;
-  for (let i = 0; i < indices.length; i++) {
-    let p1 = face.keypoints[indices[i]];
-    let p2 = face.keypoints[indices[(i + 1) % indices.length]]; // 串接到下一個點，最後一個點接回第一個點
-    if (p1 && p2) {
-      let x1 = map(p1.x, 0, vW, 0, dw);
-      let y1 = map(p1.y, 0, vH, 0, dh);
-      let x2 = map(p2.x, 0, vW, 0, dw);
-      let y2 = map(p2.y, 0, vH, 0, dh);
-      line(x1, y1, x2, y2);
-    }
+// 使用 line 指令串接關鍵點的函式
+function drawPath(points, indices, isClosed, offsetX, offsetY) {
+  stroke(255, 0, 0); // 線條紅色
+  strokeWeight(1);   // 粗細為 1
+  noFill();
+
+  for (let i = 0; i < indices.length - 1; i++) {
+    let p1 = points[indices[i]];
+    let p2 = points[indices[i + 1]];
+    line(p1[0] + offsetX, p1[1] + offsetY, p2[0] + offsetX, p2[1] + offsetY);
+  }
+
+  // 如果需要閉合 (成一圈)
+  if (isClosed) {
+    let pFirst = points[indices[0]];
+    let pLast = points[indices[indices.length - 1]];
+    line(pLast[0] + offsetX, pLast[1] + offsetY, pFirst[0] + offsetX, pFirst[1] + offsetY);
   }
 }
 
-function gotFaces(results) {
-  faces = results;
-}
-
 function windowResized() {
+  // 當視窗大小改變時，重新調整畫布大小
   resizeCanvas(windowWidth, windowHeight);
+  // 同步更新攝影機預覽大小
+  if (video) {
+    video.size(width * 0.5, height * 0.5);
+  }
 }
