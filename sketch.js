@@ -14,10 +14,14 @@ function setup() {
   // 建立全螢幕畫布
   createCanvas(windowWidth, windowHeight);
   
-  // 初始化攝影機擷取，設定為全螢幕寬高的 50%
-  video = createCapture(VIDEO);
+  // 初始化攝影機擷取，增加 callback 確認成功
+  video = createCapture(VIDEO, (stream) => {
+    console.log("攝影機串流成功啟動");
+  });
   video.size(windowWidth * 0.5, windowHeight * 0.5);
   video.hide();
+
+  // 建議：可以在這裡增加錯誤處理，提示使用者檢查攝影機
 
   // 初始化 facemesh 模型
   faceMesh = ml5.facemesh(video, () => console.log("模型準備就緒！"));
@@ -32,8 +36,8 @@ function draw() {
   // 畫布顏色設定為 e7c6ff
   background('#e7c6ff');
 
-  let displayWidth = width * 0.5;
-  let displayHeight = height * 0.5;
+  const displayWidth = width * 0.5;
+  const displayHeight = height * 0.5;
 
   push();
   // 將座標中心移至螢幕中央
@@ -46,7 +50,12 @@ function draw() {
 
   // 如果偵測到臉部關鍵點
   if (predictions.length > 0) {
-    let keypoints = predictions[0].scaledMesh;
+    const keypoints = predictions[0].scaledMesh;
+    
+    // 設定一次繪圖樣式即可，不需在 drawPath 內重複設定
+    stroke(255, 0, 0); 
+    strokeWeight(1);   
+    noFill();
     
     // 繪製路徑 1 與 路徑 2 (紅色，粗細 1)
     drawPath(keypoints, path1, false, -displayWidth / 2, -displayHeight / 2);
@@ -63,13 +72,9 @@ function draw() {
 
 // 使用 line 指令串接關鍵點的函式
 function drawPath(points, indices, isClosed, offsetX, offsetY) {
-  stroke(255, 0, 0); // 線條紅色
-  strokeWeight(1);   // 粗細為 1
-  noFill();
-
   for (let i = 0; i < indices.length - 1; i++) {
-    let p1 = points[indices[i]];
-    let p2 = points[indices[i + 1]];
+    const p1 = points[indices[i]];
+    const p2 = points[indices[i + 1]];
     line(p1[0] + offsetX, p1[1] + offsetY, p2[0] + offsetX, p2[1] + offsetY);
   }
 
