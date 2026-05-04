@@ -9,6 +9,7 @@ function preload() {
     faceMesh = ml5.faceMesh(options);
   } else {
     console.error("錯誤：ml5 未定義。請確保 HTML 檔案中已引入 ml5.js 程式庫。");
+    alert("ml5.js 載入失敗，請檢查網路連線或 index.html 設定。");
   }
 }
 
@@ -81,14 +82,16 @@ function draw() {
 
 // 輔助函式：根據點位陣列繪製串接線條
 function drawPath(face, indices, dw, dh) {
+  let vW = video.width > 0 ? video.width : 640;
+  let vH = video.height > 0 ? video.height : 480;
   for (let i = 0; i < indices.length; i++) {
     let p1 = face.keypoints[indices[i]];
     let p2 = face.keypoints[indices[(i + 1) % indices.length]]; // 串接到下一個點，最後一個點接回第一個點
     if (p1 && p2) {
-      let x1 = map(p1.x, 0, video.width, 0, dw);
-      let y1 = map(p1.y, 0, video.height, 0, dh);
-      let x2 = map(p2.x, 0, video.width, 0, dw);
-      let y2 = map(p2.y, 0, video.height, 0, dh);
+      let x1 = map(p1.x, 0, vW, 0, dw);
+      let y1 = map(p1.y, 0, vH, 0, dh);
+      let x2 = map(p2.x, 0, vW, 0, dw);
+      let y2 = map(p2.y, 0, vH, 0, dh);
       line(x1, y1, x2, y2);
     }
   }
