@@ -58,7 +58,7 @@ function draw() {
   if (faces.length > 0) {
     let face = faces[0];
     stroke(0); // 黑色線條
-    strokeWeight(15); // 線條粗細 15
+    strokeWeight(1); // 線條粗細 1
     noFill();
 
     // 定義點位編號陣列
